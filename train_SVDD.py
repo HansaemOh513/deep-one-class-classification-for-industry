@@ -39,8 +39,8 @@ def SVDD_training(item, MS_list):
     trainer = DeepSVDDTrainer(device, data_size, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option=args.summary_option)
     SVDDmodel = trainer.train(data)
     model_name = item+'.pth'
-    save = os.path.join('occ/neural_parameters/SVDD', model_name)
-    save_c = os.path.join('occ/neural_parameters/SVDD/center', model_name)
+    save = os.path.join('neural_parameters/SVDD', model_name)
+    save_c = os.path.join('neural_parameters/SVDD/center', model_name)
     torch.save(SVDDmodel.state_dict(), save)
     torch.save(trainer.c, save_c)
 
@@ -58,8 +58,8 @@ def SVDD_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly):
     # cv2     : (batch, height, width, channel)
     trainer = DeepSVDDTrainer(device, 0, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option=args.summary_option)
     model_name = item_normal+'.pth'
-    load = os.path.join('occ/neural_parameters/SVDD', model_name)
-    load_c = os.path.join('occ/neural_parameters/SVDD/center', model_name)
+    load = os.path.join('neural_parameters/SVDD', model_name)
+    load_c = os.path.join('neural_parameters/SVDD/center', model_name)
     trainer.model.load_state_dict(torch.load(load))
     trainer.c = torch.load(load_c).to(device)
     trainer.model.eval()
