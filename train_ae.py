@@ -1,6 +1,5 @@
 # https://github.com/lukasruff/Deep-SVDD-PyTorch
 import os
-os.chdir('occ')
 import sys
 import argparse
 import cv2
@@ -10,7 +9,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
-os.chdir('../')
 warnings.filterwarnings('ignore')
 torch.manual_seed(42)
 
@@ -31,78 +29,105 @@ device = torch.device('cuda:' + '{}'.format(args.gpu))
 if args.training_mode:
     print("This is training mode")
 else :
-    print("This is not training mode")
-# item = 'C550'
+    print("This is test mode")
 
-# MS_list =  [['3029C005AA', 'step_1'], ['3029C006AA', 'step_1'], ['3029C009AA', 'step_1'], ['3029C010AA', 'step_1'],
-#             ['3030C002AA', 'step_1'], ['3030C003AA', 'step_1'], ['3030C004AA', 'step_1'], ['3031C001AA', 'step_1'],
-#             ['3031C002AA', 'step_1'], ['3031C003AA', 'step_1']]
-
-item = 'C551'
-MS_list = [['3029C003AA', 'step_1'], ['3029C004AA', 'step_1'], ['3030C001AA', 'step_1']]
-
-# item = '1525'
-# MS_list = [['3029C003AA', 'step_5'], ['3029C004AA', 'step_5'], ['3029C005AA', 'step_5'], ['3029C006AA', 'step_5'], 
-#            ['3030C001AA', 'step_5'],['3029C009AA', 'step_5'], ['3029C010AA', 'step_5'], ['3030C002AA', 'step_5'], 
-#            ['3030C003AA', 'step_5'], ['3030C004AA', 'step_5'], ['3031C001AA', 'step_5'], ['3031C002AA', 'step_5'], 
-#            ['3031C003AA', 'step_5'],
-#            ['3029C003AA', 'step_7'], ['3029C004AA', 'step_7'], ['3029C005AA', 'step_7'], ['3029C006AA', 'step_7'], 
-#            ['3030C001AA', 'step_7'], ['3029C009AA', 'step_7'], ['3029C010AA', 'step_7'], ['3030C002AA', 'step_7'], 
-#            ['3030C003AA', 'step_7'], ['3030C004AA', 'step_7'], ['3031C001AA', 'step_7'], ['3031C002AA', 'step_7'], 
-#            ['3031C003AA', 'step_7']]
-master = cv2.imread("../../master/"+item+".jpg")
-data_loader = loader(master) # (batch, height, width, channel)
-
-data = loader.MS_loader(data_loader, MS_list=MS_list, resize=[True, 256, 256]) # Resize option, width, height
-# (batch, height, width, channel)
-data_shifted = np.moveaxis(data, -1, 1)
-data_torch = torch.tensor(data_shifted / 255, dtype=torch.float32, requires_grad=True, device=device)
-# pytorch : (batch, channel, height, width)
-# cv2     : (batch, height, width, channel)
-trainer = AETrainer(device, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option = args.summary_option)
-if args.training_mode:
-    AEmodel = trainer.train(data_torch)
+master = cv2.imread("../master/C550/master.jpg")
+def ae_training(item, MS_list):
+    data_loader = loader(master)
+    data = data_loader.MS_loader(MS_list, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
+    data_size = data.shape[0]
+    data = np.moveaxis(data, -1, 1)
+    data = torch.tensor(data / 255, dtype=torch.float32, requires_grad=True, device=device) # 여기서 정규화를 진행
+    # pytorch : (batch, channel, height, width) RGB
+    # cv2     : (batch, height, width, channel) BGR
+    trainer = AETrainer(device, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option = args.summary_option)
+    AEmodel = trainer.train(data)
     model_name = item+'.pth'
     save = os.path.join('occ/neural_parameters/ae', model_name)
-    # torch.save(AEmodel.state_dict(), save)
-else:
-    model_name = item+'.pth'
+    torch.save(AEmodel.state_dict(), save)
+
+def ae_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly):
+    data_loader = loader(master)
+    data_normal = data_loader.MS_loader(MS_list_normal, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
+    data_normal_size = data_normal.shape[0]
+    data_normal = np.moveaxis(data_normal, -1, 1)
+    data_normal = torch.tensor(data_normal / 255, dtype=torch.float32, requires_grad=True, device=device)
+    data_anomaly = data_loader.MS_loader(MS_list_anomaly, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
+    data_anomaly_size = data_anomaly.shape[0]
+    data_anomaly = np.moveaxis(data_anomaly, -1, 1)
+    data_anomaly = torch.tensor(data_anomaly / 255, dtype=torch.float32, requires_grad=True, device=device)
+    # pytorch : (batch, channel, height, width)
+    # cv2     : (batch, height, width, channel)
+    trainer = AETrainer(device, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option = args.summary_option)
+    model_name = item_normal+'.pth'
     load = os.path.join('occ/neural_parameters/ae', model_name)
     trainer.model.load_state_dict(torch.load(load))
     trainer.model.eval()
-    AEmodel = trainer.model
+    
+    # test mode
+    
+    # Pass
+    summation = 0
+    for i in range(0, data_normal_size, trainer.batch_size):
+        inputs = data_normal[i:i+trainer.batch_size, ...]
+        outputs = trainer.model(inputs)
+        summation = summation + outputs
+    center_normal = summation / data_normal_size
+    dists = []
+    for i in range(0, data_normal_size, trainer.batch_size):
+        inputs = data_normal[i:i+trainer.batch_size, ...]
+        outputs = trainer.model(inputs)
+        expanded_center_normal = center_normal.repeat(outputs.shape[0], 1)
+        dist = torch.sum((outputs - expanded_center_normal) ** 2, dim=1)
+        dists.append(np.mean(dist.cpu().detach().numpy()))
+    dists = np.array(dists)
+    print("Trained image dist : {:.5f}".format(np.mean(dists)))
+    pass_dists = dists
+    
+    # Fail
+    summation = 0
+    for i in range(0, data_anomaly_size, trainer.batch_size):
+        inputs = data_anomaly[i:i+trainer.batch_size, ...]
+        outputs = trainer.model(inputs)
+        summation = summation + outputs
+    center_anomaly = summation / data_anomaly_size    
+    dists = []
+    for i in range(0, data_anomaly_size, trainer.batch_size):
+        inputs = data_anomaly[i:i+trainer.batch_size, ...]
+        outputs = trainer.model(inputs)
+        expanded_center_anomaly = center_anomaly.repeat(outputs.shape[0], 1)
+        dist = torch.sum((outputs - expanded_center_anomaly) ** 2, dim=1)
+        dists.append(np.mean(dist.cpu().detach().numpy()))
+    dists = np.array(dists)
+    fail_dists = dists
+    print("Test image dist : {:.5f}".format(np.mean(dists)))
+    pass_mean  = np.mean(pass_dists)
+    pass_var   = np.var(pass_dists)
 
-if args.example:
-    reconstruction = AEmodel(data_torch[0:1, ...])
-    reconstruction_shifted = np.transpose(reconstruction[0, ...].cpu().detach().numpy(), (1, 2, 0))
-    print(reconstruction_shifted.shape)
-    plt.imshow(data[0, ...])
-    plt.show('image1.jpg')
-    plt.imshow(reconstruction_shifted)
-    plt.show('image2.jpg')
+    fail_mean  = np.mean(fail_dists)
+    fail_var   = np.var(fail_dists)
 
-# Latent space center and distance's mean and variance
-# 1. Find Latent space center 
-#    The latent space construct dimension : (128) It might be too much high dimension
+    print("pass mean : {:.8f} pass var : {:.8f} fail mean : {:.8f} fail var : {:.8f}".format(pass_mean, pass_var, fail_mean, fail_var))
 
-center = trainer.latent_center(data_torch)
-train_distances = trainer.latent_statistical_measure(data_torch, center)
+    plt.figure(figsize=(10, 6))
+    plt.hist(pass_dists, bins=50, alpha=0.7, label='Pass Distances')
+    plt.hist(fail_dists, bins=50, alpha=0.7, label='Fail Distances')
+    plt.xlabel('Distance')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of distances')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+item_normal = 'C550' # NPG
+MS_list_normal = [['3029C005AA', 'step_1'], ['3029C006AA', 'step_1'], ['3029C009AA', 'step_1'], ['3029C010AA', 'step_1'], 
+                  ['3030C002AA', 'step_1'], ['3030C003AA', 'step_1'], ['3030C004AA', 'step_1'], ['3031C001AA', 'step_1'], 
+                  ['3031C002AA', 'step_1'], ['3031C003AA', 'step_1']]
 
-train_mean = torch.mean(train_distances).item()
-train_var  = torch.var(train_distances).item()
-print("Training data mean : {:.2f} Training data variance : {:.2f}".format(train_mean, train_var))
+item_anomaly = 'C551' # C-EXV
+MS_list_anomaly = [['3029C003AA', 'step_1'], ['3029C004AA', 'step_1'], ['3030C001AA', 'step_1']]
 
-item = 'C550'
-MS_list = [['3029C005AA', 'step_1'], ['3029C006AA', 'step_1'], ['3029C009AA', 'step_1'], ['3029C010AA', 'step_1'], 
-           ['3030C002AA', 'step_1'], ['3030C003AA', 'step_1'], ['3030C004AA', 'step_1'], ['3031C001AA', 'step_1'], 
-           ['3031C002AA', 'step_1'], ['3031C003AA', 'step_1']]
-
-valid_data = loader.MS_loader(data_loader, MS_list=MS_list, resize=[True, 256, 256]) # Resize option, width, height
-valid_data_shifted = np.moveaxis(valid_data, -1, 1)
-valid_data_torch = torch.tensor(valid_data_shifted / 255, dtype=torch.float32, requires_grad=True, device=device)
-
-valid_distances = trainer.latent_statistical_measure(valid_data_torch, center)
-
-valid_mean = torch.mean(valid_distances).item()
-valid_var  = torch.var(valid_distances).item()
-print("Test data mean : {:.2f} Test data variance : {:.2f}".format(valid_mean, valid_var))
+master = cv2.imread("../master/C550/master.jpg")
+if args.training_mode==1:
+    ae_training(item_normal, MS_list_normal)
+elif args.training_mode==0:
+    ae_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly)

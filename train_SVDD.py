@@ -3,7 +3,7 @@ import os
 import sys
 import argparse
 from optimization.optimization_SVDD import DeepSVDDTrainer
-from dataloader_old import MS_loader
+from dataloader import loader
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,14 +26,16 @@ args = parser.parse_args()
 device = torch.device('cuda:' + '{}'.format(args.gpu))
 if args.training_mode==1:
     print("This is training mode")
-
+else :
+    print("This is test mode")
 def SVDD_training(item, MS_list):
-    data = MS_loader(MS_list, master, resize=[True, 256, 256]) # (batch, height, width, channel)
+    data_loader = loader(master)
+    data = data_loader.MS_loader(MS_list, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
     data_size = data.shape[0]
     data = np.moveaxis(data, -1, 1)
     data = torch.tensor(data / 255, dtype=torch.float32, requires_grad=True, device=device) # 여기서 정규화를 진행
-    # pytorch : (batch, channel, height, width)
-    # cv2     : (batch, height, width, channel)
+    # pytorch : (batch, channel, height, width) RGB
+    # cv2     : (batch, height, width, channel) BGR
     trainer = DeepSVDDTrainer(device, data_size, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option=args.summary_option)
     SVDDmodel = trainer.train(data)
     model_name = item+'.pth'
@@ -43,15 +45,15 @@ def SVDD_training(item, MS_list):
     torch.save(trainer.c, save_c)
 
 def SVDD_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly):
-    data_normal = MS_loader(MS_list_normal, master, resize=[True, 256, 256]) # (batch, height, width, channel)
+    data_loader = loader(master)
+    data_normal = data_loader.MS_loader(MS_list_normal, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
     data_normal_size = data_normal.shape[0]
     data_normal = np.moveaxis(data_normal, -1, 1)
     data_normal = torch.tensor(data_normal / 255, dtype=torch.float32, requires_grad=True, device=device)
-    data_anomaly = MS_loader(MS_list_anomaly, master, resize=[True, 256, 256]) # (batch, height, width, channel)
+    data_anomaly = data_loader.MS_loader(MS_list_anomaly, resize=[True, 256, 256]) # (batch, height, width, channel) RGB
     data_anomaly_size = data_anomaly.shape[0]
     data_anomaly = np.moveaxis(data_anomaly, -1, 1)
     data_anomaly = torch.tensor(data_anomaly / 255, dtype=torch.float32, requires_grad=True, device=device)
-
     # pytorch : (batch, channel, height, width)
     # cv2     : (batch, height, width, channel)
     trainer = DeepSVDDTrainer(device, 0, max_iteration = args.max_iteration, lr = args.learning_rate, summary_option=args.summary_option)
@@ -103,14 +105,13 @@ def SVDD_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly):
     plt.show()
 item_normal = 'C550' # NPG
 MS_list_normal = [['3029C005AA', 'step_1'], ['3029C006AA', 'step_1'], ['3029C009AA', 'step_1'], ['3029C010AA', 'step_1'], 
-           ['3030C002AA', 'step_1'], ['3030C003AA', 'step_1'], ['3030C004AA', 'step_1'], ['3031C001AA', 'step_1'], 
-           ['3031C002AA', 'step_1'], ['3031C003AA', 'step_1']]
+                  ['3030C002AA', 'step_1'], ['3030C003AA', 'step_1'], ['3030C004AA', 'step_1'], ['3031C001AA', 'step_1'], 
+                  ['3031C002AA', 'step_1'], ['3031C003AA', 'step_1']]
 
 item_anomaly = 'C551' # C-EXV
 MS_list_anomaly = [['3029C003AA', 'step_1'], ['3029C004AA', 'step_1'], ['3030C001AA', 'step_1']]
 
-# master = cv2.imread("../../master/"+item_normal+".jpg")
-master = cv2.imread("master_NPG.jpg")
+master = cv2.imread("../master/C550/master.jpg")
 if args.training_mode==1:
     SVDD_training(item_normal, MS_list_normal)
 elif args.training_mode==0:

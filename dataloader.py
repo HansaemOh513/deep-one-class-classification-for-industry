@@ -72,8 +72,8 @@ class loader:
         Output : Whole data chosen by MS_list
         '''
         for Mtype, step in MS_list:
-            Mtype_path = os.path.join('../../images', Mtype) # '../../images' 주의할 것.
-            load_path = os.path.join(Mtype_path, step) # '../../images' 주의할 것.
+            Mtype_path = os.path.join('../images', Mtype) # '../images' Warnings!!
+            load_path = os.path.join(Mtype_path, step)
             name = os.listdir(load_path)[0]
             image_path = os.path.join(load_path, name)
             image = cv2.imread(image_path)
@@ -83,10 +83,11 @@ class loader:
             data = np.empty((0, height, width, channel))
             break
         n = 0 # Initialize #
+        print("Loaded data : ", n)
         for Mtype, step in MS_list:
             
-            Mtype_path = os.path.join('../../images', Mtype) # '../../images' warnings!
-            load_path = os.path.join(Mtype_path, step) # '../../images' warnings!
+            Mtype_path = os.path.join('../images', Mtype) # '../images' Warnings!!
+            load_path = os.path.join(Mtype_path, step)
             n, Mtype_data = self.data_loader(n, load_path, resize)
             data = np.concatenate([data, Mtype_data], axis = 0)
             print("Loaded data : ", n)
