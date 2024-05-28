@@ -86,11 +86,11 @@ def SVDD_test(item_normal, MS_list_normal, item_anomaly, MS_list_anomaly):
     dists = np.array(dists)
     fail_dists = dists
     print("Test image dist : {:.5f}".format(np.mean(dists)))
-    pass_mean  = np.mean(pass_dists)
-    pass_var   = np.var(pass_dists)
+    pass_mean = np.mean(pass_dists)
+    pass_var = np.var(pass_dists)
 
-    fail_mean  = np.mean(fail_dists)
-    fail_var   = np.var(fail_dists)
+    fail_mean = np.mean(fail_dists)
+    fail_var = np.var(fail_dists)
 
     print("pass mean : {:.8f} pass var : {:.8f} fail mean : {:.8f} fail var : {:.8f}".format(pass_mean, pass_var, fail_mean, fail_var))
 
