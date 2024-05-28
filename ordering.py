@@ -26,7 +26,7 @@ def move():
                         shutil.copy(path_4, os.path.join(destination_path, label, pattern__, printer + name))
 
 for i in range(30):
-    pattern  = f'step_{i}.jpg'
+    pattern = f'step_{i}.jpg'
     pattern_ = f'step_{i}.jpg'
     move()
 
