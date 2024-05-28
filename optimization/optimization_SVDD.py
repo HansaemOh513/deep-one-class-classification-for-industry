@@ -17,7 +17,7 @@ class DeepSVDDTrainer(SVDD):
         self.model = SVDD()
         self.model = self.model.to(device)
         if summary_option:
-            summary(self.model, (3, 256, 256)) # 수정해야 하지만 수정하기 귀찮아서 이렇게 내버려둠.
+            summary(self.model, (3, 256, 256))
             print("optimization_SVDD.py, line 21")
             sys.exit()
         self.objective ='one-class'
