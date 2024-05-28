@@ -17,7 +17,7 @@ class AETrainer(Autoencoder):
         self.model = Autoencoder()
         self.model = self.model.to(device)
         if summary_option:
-            summary(self.model, (3, 256, 256)) # 수정해야 하지만 수정하기 귀찮아서 이렇게 내버려둠.
+            summary(self.model, (3, 256, 256))
             print("optimization_ae.py, line 21")
             sys.exit()
         self.max_iteration = max_iteration
